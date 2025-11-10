@@ -29,7 +29,7 @@ Each option generates a full amortization table with:
 
 **Files Produced using Pandas, Matplotlib, Numpy, openpyxl:**
 - `Payment_Schedules.xlsx` — Excel file with six worksheets (one for each payment type)
-- `Loan_Balance_Decline.png` — Matplotlib chart showing balance decline across all schedules  
+- `Loan_Balance_Decline.png` — Matplotlib.pyplot and Matplotlib.ticker chart showing balance decline across all schedules  
 
 ### Consumer Price Index (CPI)
 `CPI_Analysis.py` analyzes monthly Consumer Price Index (CPI) data for 2024 across Canada and its provinces using data from **Statistics Canada**.  
@@ -52,4 +52,7 @@ It estimates inflation, compares price changes across categories, and evaluates 
 - Combined CPI summary  
 - Monthly change table by province  
 - Salary and wage comparison tables  
-- Services inflation summary  
+- Services inflation summary
+
+**Files Produced using Pandas, Matplotlib, Numpy, openpyxl:**
+- `CPI_Analysis_Results.xlsx` — Excel file with worksheets that answers all questions related to CPI
