@@ -59,9 +59,14 @@ for file_name in csv_files:
 
 # Question 2
 """Client wants to display the first 12 rows of the combined CPI data frame"""
+pd.set_option('display.max_colwidth', None)  # show full text in columns
+
 df = df[["Item", "Month", "Jurisdiction", "CPI"]]
 print("QUESTION 2: FIRST 12 LINES OF THE COMBINED DATAFRAME:")
 print(df.head(12))
+
+# Convert Month to a proper datetime once
+df["Date"] = pd.to_datetime(df["Month"], format="%b-%y")
 
 # Convert Month to a proper datetime once
 df["Date"] = pd.to_datetime(df["Month"], format="%b-%y")
@@ -161,7 +166,9 @@ dec24 = all_items[all_items["Month"] == "Dec-24"].copy()
 """Rename CPI column to match Province column for merge and compute Real Minimum Wage using (Nominal / CPI) × 100"""
 dec24 = dec24.rename(columns={"Jurisdiction": "Province"})
 merged = pd.merge(min_wages, dec24[["Province", "CPI"]], on="Province", how="inner")
+
 merged["Real_Min_Wage"] = (merged["Minimum Wage"] / merged["CPI"]) * 100
+merged["Nominal_Real_Diff"] = merged["Minimum Wage"] - merged["Real_Min_Wage"]
 
 """Find province with highest real minimum wage"""
 highest_real = merged.loc[merged["Real_Min_Wage"].idxmax()]
@@ -169,20 +176,105 @@ highest_real = merged.loc[merged["Real_Min_Wage"].idxmax()]
 print("\nQUESTION 6: HIGHEST REAL MINIMUM WAGE USING CPI NUMBERS FOR DECEMBER 2024:")
 print(f"{highest_real['Province']}: ${highest_real['Real_Min_Wage']:.2f}")
 
+"""Display CPI, nominal, and real wage difference by province"""
+print("\nQUESTION 6: NOMINAL VS REAL MINIMUM WAGE DIFFERENCE (DECEMBER 2024):")
+diff_table = merged[["Province", "CPI", "Minimum Wage", "Real_Min_Wage", "Nominal_Real_Diff"]].copy()
+diff_table["CPI"] = diff_table["CPI"].round(1)
+diff_table["Minimum Wage"] = diff_table["Minimum Wage"].round(2)
+diff_table["Real_Min_Wage"] = diff_table["Real_Min_Wage"].round(2)
+diff_table["Nominal_Real_Diff"] = diff_table["Nominal_Real_Diff"].round(2)
+"""Add $ signs for wage columns"""
+diff_table["Minimum Wage"] = diff_table["Minimum Wage"].apply(lambda x: f"${x:,.2f}")
+diff_table["Real_Min_Wage"] = diff_table["Real_Min_Wage"].apply(lambda x: f"${x:,.2f}")
+diff_table["Nominal_Real_Diff"] = diff_table["Nominal_Real_Diff"].apply(lambda x: f"${x:,.2f}")
+
+print(diff_table.to_string(index=False))
+
 # Question 7
 """Client wants to calculate the annual % change in CPI for Services across all jurisdictions"""
 """Filter only rows where Item = "Services" since CPI includes many categories and group by province/region and get the first and last CPI readings for the year"""
 df_services = df.loc[df["Item"] == "Services"]
 annual_stats = df_services.groupby("Jurisdiction")["CPI"].agg(["first", "last"]).reset_index()
-"""Compute annual % change = ((last - first) / first) * 100"""
 annual_stats["Annual_pct_change"] = ((annual_stats["last"] - annual_stats["first"]) / annual_stats["first"]) * 100
 annual_stats["Annual_pct_change"] = annual_stats["Annual_pct_change"].round(1)
+
 print("\nQUESTION 7: ANNUAL CHANGE IN CPI FOR SERVICES (FIRST VS. LAST MONTH):")
-print(annual_stats)
+display_stats = annual_stats.copy()
+display_stats["Annual_pct_change"] = display_stats["Annual_pct_change"].map(lambda x: f"{x:.1f}%")
+print(display_stats)
+
 top_services = annual_stats.loc[annual_stats["Annual_pct_change"].idxmax()]
 
 # Question 8
 """Client wants to identify the region with the highest annual inflation in Services"""
 print("\nQUESTION 8: REGION WITH THE HIGHEST INFLATION IN SERVICES:")
 print("Jurisdiction:", top_services["Jurisdiction"])
-print("Inflation Value (%):", str(top_services["Annual_pct_change"]) + "%")
+print("Inflation Value (%):", f"{top_services['Annual_pct_change']:.1f}%")
+
+# SAVE ALL QUESTION OUTPUTS TO ONE EXCEL FILE
+from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
+
+excel_out = "CPI_Analysis_Results.xlsx"
+
+with pd.ExcelWriter(excel_out, engine="openpyxl") as writer:
+    # Q2 – first 12 rows
+    df[["Item", "Month", "Jurisdiction", "CPI"]].head(12).to_excel(
+        writer, sheet_name="Q2_First12Rows", index=False
+    )
+
+    # Q3 – average month-to-month % change pivot table
+    avg_pivot.reset_index().to_excel(writer, sheet_name="Q3_AvgMoMChange", index=False)
+
+    # Q4 – provinces with highest average change
+    top_prov.to_excel(writer, sheet_name="Q4_TopProvince", index=False)
+
+    # Q5 – equivalent salary table
+    equiv_salaries.to_excel(writer, sheet_name="Q5_EquivalentSalary", index=False)
+
+    # Q6 – nominal vs real minimum wage difference
+    diff_table.to_excel(writer, sheet_name="Q6_NominalVsRealDiff", index=False)
+
+
+    # Q7 – services inflation table
+    annual_stats.to_excel(writer, sheet_name="Q7_ServicesInflation", index=False)
+
+    # Q8 – single-row summary of top region
+    pd.DataFrame([top_services]).to_excel(writer, sheet_name="Q8_TopRegion", index=False)
+
+    # Apply formatting to every worksheet 
+    wb = writer.book
+    for ws in wb.worksheets:
+        header_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+        for col_idx, col_name in enumerate(ws.iter_cols(1, ws.max_column), start=1):
+            col_letter = get_column_letter(col_idx)
+            header_cell = ws[f"{col_letter}1"]
+            header_cell.font = Font(bold=True)
+            header_cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            header_cell.fill = header_fill
+
+            # Auto-fit column width
+            max_len = max(
+                (len(str(cell.value)) if cell.value is not None else 0 for cell in col_name),
+                default=len(col_name),
+            )
+            ws.column_dimensions[col_letter].width = max_len + 2
+
+        # Apply currency format only to Q6’s wage columns
+        if ws.title == "Q6_NominalVsRealDiff":
+            for col in ["C", "D", "E"]:  # Minimum Wage, Real_Min_Wage, Nominal_Real_Diff
+                for cell in ws[col][1:]:
+                    cell.number_format = u'"$"#,##0.00'
+
+        # Apply percent-like format to Annual_pct_change for Q7 and Q8
+        if ws.title in ("Q7_ServicesInflation", "Q8_TopRegion"):
+            # Find the column that contains 'Annual_pct_change'
+            for cell in ws[1]:
+                if str(cell.value) == "Annual_pct_change":
+                    pct_col_letter = cell.column_letter
+                    # Format as number with a literal % sign (no scaling)
+                    for c in ws[pct_col_letter][1:]:
+                        c.number_format = '0.0"%"'
+                    break
+
+print(f"\nAll question outputs have been saved to: {excel_out}")

@@ -27,7 +27,7 @@ Each option generates a full amortization table with:
 - **Payment**
 - **Ending Balance**
 
-**Files Produced using Pandas, Matplotlib and Numpy:**
+**Files Produced using Pandas, Matplotlib, Numpy, openpyxl:**
 - `Payment_Schedules.xlsx` — Excel file with six worksheets (one for each payment type)
 - `Loan_Balance_Decline.png` — Matplotlib chart showing balance decline across all schedules  
 

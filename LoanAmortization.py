@@ -16,6 +16,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, Alignment, PatternFill
+from matplotlib.ticker import FuncFormatter 
 
 
 class MortgagePayment:
@@ -174,7 +175,7 @@ if __name__ == "__main__":
 
     print(f"\nAll 6 mortgage schedules have been saved to: {excel_file}")
 
-    # Plot balance decline for all 6 schedules
+  # Plot balance decline for all 6 schedules
     plt.figure(figsize=(10, 7))
     for name, df in schedules.items():
         plt.plot(df["Period"], df["Ending Balance"], label=name)
@@ -183,6 +184,11 @@ if __name__ == "__main__":
     plt.ylabel("Ending Balance ($)")
     plt.legend()
     plt.grid(True, linestyle="--", linewidth=0.5, alpha=0.6)
+
+    # Format Y-axis with commas (e.g., 100,000 instead of 100000)
+    formatter = FuncFormatter(lambda x, _: f"{x:,.0f}")
+    plt.gca().yaxis.set_major_formatter(formatter)
+
     plt.tight_layout()
 
     png_file = "Loan_Balance_Decline.png"
